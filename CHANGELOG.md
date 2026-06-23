@@ -1,5 +1,9 @@
+## 0.3.0
+* Added repository, homepage and issue tracker links
+* Added pub.dev topics for better discoverability
+* Improved README with full API documentation
+
 ## 0.2.0
-* Added topics for better discoverability
 * Improved documentation
 
 ## 0.1.0
