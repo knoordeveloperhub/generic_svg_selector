@@ -7,8 +7,8 @@ import 'package:generic_svg_selector/src/service/generic_svg_service.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:touchable/touchable.dart';
 
-class GenericSvgSelectorWidget extends StatefulWidget {
-  const GenericSvgSelectorWidget({
+class GenericSvgSelector extends StatefulWidget {
+  const GenericSvgSelector({
     required this.assetPath,
     required this.selection,
     required this.onSelectionUpdated,
@@ -34,11 +34,11 @@ class GenericSvgSelectorWidget extends StatefulWidget {
   final Widget? errorWidget;
 
   @override
-  State<GenericSvgSelectorWidget> createState() =>
-      _GenericSvgSelectorWidgetState();
+  State<GenericSvgSelector> createState() =>
+      _GenericSvgSelectorState();
 }
 
-class _GenericSvgSelectorWidgetState extends State<GenericSvgSelectorWidget> {
+class _GenericSvgSelectorState extends State<GenericSvgSelector> {
   bool _initialized = false;
 
   @override

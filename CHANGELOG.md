@@ -1,3 +1,6 @@
+## 0.5.0
+* git hub path fixed
+
 ## 0.4.0
 * Version number set
 

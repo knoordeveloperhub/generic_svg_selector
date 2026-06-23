@@ -63,7 +63,7 @@ class _SvgSelectorDemoState extends State<SvgSelectorDemo> {
         children: [
           // SVG Selector
           Expanded(
-            child: GenericSvgSelectorWidget(
+            child: GenericSvgSelector(
               assetPath: 'assets/body.svg',
               selection: _selection,
               mirrored: _mirrored,
