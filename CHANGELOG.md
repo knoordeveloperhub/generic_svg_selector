@@ -1,3 +1,6 @@
+## 0.4.0
+* Version number set
+
 ## 0.3.0
 * Added repository, homepage and issue tracker links
 * Added pub.dev topics for better discoverability
