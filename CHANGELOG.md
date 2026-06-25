@@ -1,3 +1,6 @@
+## 0.6.0
+* Pass static analysis and Support up-to-date dependencies issues resolved
+
 ## 0.5.0
 * git hub path fixed
 

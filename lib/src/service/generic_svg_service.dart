@@ -4,10 +4,10 @@ import 'package:xml/xml.dart';
 
 /// A single parsed SVG path element.
 class SvgPathData {
-  /// The id attribute of the <path> element.
+  /// The id attribute of the path element.
   final String id;
 
-  /// The raw "d" attribute string of the <path> element.
+  /// The raw "d" attribute string of the path element.
   final String pathData;
 
   /// Creates an [SvgPathData].
@@ -33,9 +33,9 @@ class SvgData {
   });
 }
 
-/// Loads and caches flat SVG files, extracting <path id="..."> elements.
+/// Loads and caches flat SVG files, extracting path id="..." elements.
 ///
-/// SVG must be flat — direct <path> children of <svg> with id attributes.
+/// SVG must be flat — direct path children of svg with id attributes.
 class GenericSvgService {
   GenericSvgService._();
 
@@ -125,8 +125,8 @@ class GenericSvgService {
   }
   
   
-  /// Recursively extracts <path> elements that have an id attribute.
-  /// Works for both flat SVGs and SVGs with <g> groups.
+  /// Recursively extracts path elements that have an id attribute.
+  /// Works for both flat SVGs and SVGs with g groups.
   void _extractPaths(XmlElement element, List<SvgPathData> paths) {
     if (element.localName == 'path') {
       final id = element.getAttribute('id');
@@ -135,7 +135,7 @@ class GenericSvgService {
         paths.add(SvgPathData(id: id, pathData: d));
       }
     }
-    // Recurse into children (handles <g> groups too)
+    // Recurse into children (handles g groups too)
     for (final child in element.childElements) {
       _extractPaths(child, paths);
     }
