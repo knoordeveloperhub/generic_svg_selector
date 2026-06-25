@@ -15,7 +15,7 @@ A Flutter plugin to interactively select parts of any flat SVG by tapping.
 
 ```yaml
 dependencies:
-  generic_svg_selector: ^0.6.0
+  generic_svg_selector: ^0.7.0
 ```
 
 ## SVG Requirements

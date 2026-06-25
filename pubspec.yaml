@@ -1,6 +1,6 @@
 name: generic_svg_selector
 description: A Flutter plugin to interactively select parts of any flat SVG by tapping.
-version: 0.6.0
+version: 0.7.0
 homepage: https://github.com/knoordeveloperhub/generic_svg_selector
 repository: https://github.com/knoordeveloperhub/generic_svg_selector
 issue_tracker: https://github.com/knoordeveloperhub/generic_svg_selector/issues
@@ -18,9 +18,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  xml: ^7.0.1
-  path_drawing: ^1.0.1
-  touchable: ^1.0.2
+  xml: ^7.0.1 
 
 dev_dependencies:
   flutter_test:

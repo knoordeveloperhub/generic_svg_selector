@@ -1,11 +1,8 @@
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:generic_svg_selector/src/model/svg_selection.dart';
 import 'package:generic_svg_selector/src/service/generic_svg_service.dart';
-import 'package:path_drawing/path_drawing.dart';
-import 'package:touchable/touchable.dart';
 
 class GenericSvgSelector extends StatefulWidget {
   const GenericSvgSelector({
@@ -41,14 +38,140 @@ class GenericSvgSelector extends StatefulWidget {
 class _GenericSvgSelectorState extends State<GenericSvgSelector> {
   bool _initialized = false;
 
+  /// SVG path string ko Flutter Path mein convert karo — path_drawing replace
+  Path _parseSvgPath(String d) {
+    final path = Path();
+    // Simple SVG path parser — M, L, C, Z, c, l commands support
+    final commands = RegExp(
+      r'([MmLlCcZzHhVvSsQqTtAa])|(-?\d*\.?\d+(?:[eE][+-]?\d+)?)',
+    ).allMatches(d);
+
+    String currentCmd = '';
+    final nums = <double>[];
+
+    void flushNums() {
+      switch (currentCmd) {
+        case 'M':
+          for (var i = 0; i + 1 < nums.length; i += 2) {
+            if (i == 0)
+              {path.moveTo(nums[i], nums[i + 1]);}
+            else
+              {path.lineTo(nums[i], nums[i + 1]);}
+          }
+        case 'm':
+          for (var i = 0; i + 1 < nums.length; i += 2) {
+            if (i == 0)
+              {path.relativeMoveTo(nums[i], nums[i + 1]);}
+            else
+              {path.relativeLineTo(nums[i], nums[i + 1]);}
+          }
+        case 'L':
+          for (var i = 0; i + 1 < nums.length; i += 2) {
+            path.lineTo(nums[i], nums[i + 1]);
+          }
+        case 'l':
+          for (var i = 0; i + 1 < nums.length; i += 2) {
+            path.relativeLineTo(nums[i], nums[i + 1]);
+          }
+        case 'H':
+          for (final x in nums) {path.lineTo(x, 0);}
+        case 'h':
+          for (final x in nums) {path.relativeLineTo(x, 0);}
+        case 'V':
+          for (final y in nums){ path.lineTo(0, y);}
+        case 'v':
+          for (final y in nums) {path.relativeLineTo(0, y);}
+        case 'C':
+          for (var i = 0; i + 5 < nums.length; i += 6) {
+            path.cubicTo(
+              nums[i],
+              nums[i + 1],
+              nums[i + 2],
+              nums[i + 3],
+              nums[i + 4],
+              nums[i + 5],
+            );
+          }
+        case 'c':
+          for (var i = 0; i + 5 < nums.length; i += 6) {
+            path.relativeCubicTo(
+              nums[i],
+              nums[i + 1],
+              nums[i + 2],
+              nums[i + 3],
+              nums[i + 4],
+              nums[i + 5],
+            );
+          }
+        case 'Z':
+        case 'z':
+          path.close();
+      }
+      nums.clear();
+    }
+
+    for (final match in commands) {
+      final cmd = match.group(1);
+      final num = match.group(2);
+      if (cmd != null) {
+        if (currentCmd.isNotEmpty) flushNums();
+        currentCmd = cmd;
+        if (cmd == 'Z' || cmd == 'z') {
+          flushNums();
+        }
+      } else if (num != null) {
+        nums.add(double.parse(num));
+      }
+    }
+    if (currentCmd.isNotEmpty) flushNums();
+
+    return path;
+  }
+
+  void _onTapDown(TapDownDetails details, SvgData data, Size size) {
+    final tapPoint = details.localPosition;
+
+    final double scale = min(
+      size.width / data.viewBoxWidth,
+      size.height / data.viewBoxHeight,
+    );
+    final scaledW = data.viewBoxWidth * scale;
+    final scaledH = data.viewBoxHeight * scale;
+    final dx = (size.width - scaledW) / 2.0;
+    final dy = (size.height - scaledH) / 2.0;
+
+    // Tap point ko SVG coordinate space mein convert karo
+    final svgX = (tapPoint.dx - dx) / scale;
+    final svgY = (tapPoint.dy - dy) / scale;
+    final svgPoint = Offset(svgX, svgY);
+
+    // Reverse order mein check karo (top layer pehle)
+    for (final pathData in data.paths.reversed) {
+      Path rawPath;
+      try {
+        rawPath = _parseSvgPath(pathData.pathData);
+      } catch (_) {
+        continue;
+      }
+      if (rawPath.contains(svgPoint)) {
+        widget.onSelectionUpdated(
+          widget.selection.withToggledId(
+            pathData.id,
+            mirror: widget.mirrored,
+          ),
+        );
+        return;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifier = GenericSvgService.instance.load(widget.assetPath);
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Effective colors — unselected should be clearly visible
     final selectedColor = widget.selectedColor ?? colorScheme.primary;
-final unselectedColor =
+    final unselectedColor =
         widget.unselectedColor ?? colorScheme.surfaceContainerHighest;
     final selectedOutlineColor =
         widget.selectedOutlineColor ?? colorScheme.onPrimary;
@@ -58,7 +181,6 @@ final unselectedColor =
     return ValueListenableBuilder<SvgData?>(
       valueListenable: notifier,
       builder: (context, data, _) {
-        // Error state
         if (data == null &&
             GenericSvgService.instance.hasError(widget.assetPath)) {
           return widget.errorWidget ??
@@ -75,61 +197,51 @@ final unselectedColor =
               );
         }
 
-        // Loading state
         if (data == null) {
           return widget.loadingWidget ??
               const Center(child: CircularProgressIndicator.adaptive());
         }
 
-        // Initialize selection ONCE when data first arrives
         if (!_initialized) {
           _initialized = true;
           final ids = data.paths.map((p) => p.id).toList();
           if (widget.selection.ids.isEmpty && ids.isNotEmpty) {
-            // Synchronously notify — no postFrameCallback needed
             Future.microtask(() {
               widget.onSelectionUpdated(SvgSelection.fromIds(ids));
             });
           }
         }
 
-        // Use current selection, but if still empty use data ids as unselected
         final effectiveSelection = widget.selection.ids.isEmpty
             ? SvgSelection.fromIds(data.paths.map((p) => p.id).toList())
             : widget.selection;
 
-      return LayoutBuilder(
-        builder: (context, constraints) { 
-      
-          if (constraints.maxHeight == double.infinity ||
-              constraints.maxHeight == 0) {
-            return const Center(
-                child: Text('NO HEIGHT — wrap in Expanded or SizedBox'));
-          }
-      
-          return CanvasTouchDetector(
-            gesturesToOverride: const [GestureType.onTapDown],
-            builder: (ctx) => CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _SvgPainter(
-                data: data,
-                selection: effectiveSelection,
-                context: ctx,
-                selectedColor: selectedColor,
-                unselectedColor: unselectedColor,
-                selectedOutlineColor: selectedOutlineColor,
-                unselectedOutlineColor: unselectedOutlineColor,
-                onTap: (id) {
-                  widget.onSelectionUpdated(
-                    effectiveSelection.withToggledId(id,
-                        mirror: widget.mirrored),
-                  );
-                },
-              ),
-            ),
-          );
-        },
-      );
+        return SizedBox.expand(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              return GestureDetector(
+                onTapDown: (details) => _onTapDown(details, data, size),
+                child: CustomPaint(
+                  size: size,
+                  painter: _SvgPainter(
+                    data: data,
+                    selection: effectiveSelection,
+                    selectedColor: selectedColor,
+                    unselectedColor: unselectedColor,
+                    selectedOutlineColor: selectedOutlineColor,
+                    unselectedOutlineColor: unselectedOutlineColor,
+                    pathParser: _parseSvgPath,
+                  ),
+                  child: SizedBox(
+                    width: size.width,
+                    height: size.height,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
       },
     );
   }
@@ -139,26 +251,22 @@ class _SvgPainter extends CustomPainter {
   _SvgPainter({
     required this.data,
     required this.selection,
-    required this.context,
     required this.selectedColor,
     required this.unselectedColor,
     required this.selectedOutlineColor,
     required this.unselectedOutlineColor,
-    required this.onTap,
+    required this.pathParser,
   });
 
   final SvgData data;
   final SvgSelection selection;
-  final BuildContext context;
   final Color selectedColor;
   final Color unselectedColor;
   final Color selectedOutlineColor;
   final Color unselectedOutlineColor;
-  final void Function(String id) onTap;
+  final Path Function(String) pathParser;
 
-
-
-@override
+  @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
@@ -169,37 +277,23 @@ class _SvgPainter extends CustomPainter {
 
     final scaledW = data.viewBoxWidth * scale;
     final scaledH = data.viewBoxHeight * scale;
-
     final dx = (size.width - scaledW) / 2.0;
     final dy = (size.height - scaledH) / 2.0;
-
-    // Transform matrix — tap detection ke liye
-    final matrix = Float64List(16);
-    Matrix4.identity()
-      ..translate(dx, dy, 0)
-      ..scale(scale, scale, 1)
-      ..copyIntoArray(matrix);
 
     canvas.save();
     canvas.translate(dx, dy);
     canvas.scale(scale);
 
-    final touchyCanvas = TouchyCanvas(context, canvas);
-
     for (final pathData in data.paths) {
-      final id = pathData.id;
-      final isSelected = selection.isSelected(id);
+      final isSelected = selection.isSelected(pathData.id);
 
       Path rawPath;
       try {
-        rawPath = parseSvgPathData(pathData.pathData);
-      } catch (e) {
+        rawPath = pathParser(pathData.pathData);
+      } catch (_) {
         continue;
       }
 
-      final tappablePath = rawPath.transform(matrix);
-
-      // Fill — raw path (canvas transformed hai)
       canvas.drawPath(
         rawPath,
         Paint()
@@ -207,7 +301,6 @@ class _SvgPainter extends CustomPainter {
           ..style = PaintingStyle.fill,
       );
 
-      // Outline — raw path (canvas transformed hai)
       canvas.drawPath(
         rawPath,
         Paint()
@@ -215,26 +308,15 @@ class _SvgPainter extends CustomPainter {
           ..strokeWidth = 1.5 / scale
           ..style = PaintingStyle.stroke,
       );
-
-      // Tap detection — transformed path (screen coords), transparent paint
-      touchyCanvas.drawPath(
-        tappablePath,
-        Paint()
-          ..color = Colors.transparent
-          ..style = PaintingStyle.fill,
-        onTapDown: (_) => onTap(id),
-      );
     }
 
     canvas.restore();
   }
 
-
-
-@override
+  @override
   bool shouldRepaint(_SvgPainter old) =>
       old.selection != selection ||
-      old.data != data || // pehle old.data != old.data tha — yeh bug tha!
+      old.data != data ||
       old.selectedColor != selectedColor ||
       old.unselectedColor != unselectedColor ||
       old.selectedOutlineColor != selectedOutlineColor ||

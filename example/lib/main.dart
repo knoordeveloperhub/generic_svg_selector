@@ -67,10 +67,10 @@ class _SvgSelectorDemoState extends State<SvgSelectorDemo> {
               assetPath: 'assets/body.svg',
               selection: _selection,
               mirrored: _mirrored,
-              selectedColor: Colors.red,
-              unselectedColor: Colors.green,
+              selectedColor: const Color(0xFFF15BB5),
+              unselectedColor: const Color(0xFF00BBF9),
               selectedOutlineColor: Colors.black,
-              unselectedOutlineColor: Colors.greenAccent,
+              unselectedOutlineColor: const Color(0xFF0077B6),
               onSelectionUpdated: (newSelection) {
                 setState(() => _selection = newSelection);
               },

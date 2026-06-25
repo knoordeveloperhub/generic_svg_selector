@@ -1,3 +1,6 @@
+## 0.7.0
+* Extra Plugins are removed
+
 ## 0.6.0
 * Pass static analysis and Support up-to-date dependencies issues resolved
 
